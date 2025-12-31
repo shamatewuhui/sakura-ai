@@ -147,6 +147,9 @@ export class DatabaseService {
         status: 'healthy',
         uptime: responseTime
       };
+
+
+      
     } catch (error) {
       return {
         status: 'unhealthy',

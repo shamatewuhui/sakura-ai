@@ -17,6 +17,9 @@ export class AxureParseService {
   async parseHtmlFile(filePath: string): Promise<AxureParseResult> {
     console.log('📄 开始解析Axure文件:', filePath);
 
+
+    
+
     try {
       // 1. 读取HTML文件
       const html = await fs.readFile(filePath, 'utf-8');
