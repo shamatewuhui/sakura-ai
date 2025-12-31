@@ -10,4 +10,5 @@ export const themeTokens: {
 export const antdThemeConfig: any;
 export const darkThemeConfig: any;
 
+
 export type ThemeTokens = typeof themeTokens;
