@@ -845,52 +845,7 @@ async function logServerInfo() {
     return 0;
   });
 
-  // 🔥 改进：尝试多个公网IP获取服务，提高成功率
-  const publicIpServices = [
-    { url: 'https://api.ipify.org?format=json', timeout: 5000 },
-    { url: 'https://api64.ipify.org?format=json', timeout: 5000 },
-    { url: 'https://ifconfig.me/ip', timeout: 5000, isPlainText: true },
-    { url: 'https://icanhazip.com', timeout: 5000, isPlainText: true },
-    { url: 'https://checkip.amazonaws.com', timeout: 5000, isPlainText: true }
-  ];
-
-  let publicIp: string | null = null;
-  let lastError: Error | null = null;
-
-  // 依次尝试各个服务
-  for (const service of publicIpServices) {
-    try {
-      if (service.isPlainText) {
-        // 纯文本响应
-        const response = await axios.get(service.url, { 
-          timeout: service.timeout,
-          responseType: 'text',
-          validateStatus: (status) => status === 200
-        });
-        publicIp = response.data.trim();
-      } else {
-        // JSON响应
-        const response = await axios.get(service.url, { 
-          timeout: service.timeout,
-          validateStatus: (status) => status === 200
-        });
-        publicIp = response.data.ip || response.data.query || response.data;
-      }
-      
-      if (publicIp && /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(publicIp)) {
-        // 验证IP格式正确
-        break;
-      } else {
-        publicIp = null;
-      }
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      // 继续尝试下一个服务
-      continue;
-    }
-  }
-
-  // 输出服务器信息
+  // 输出服务器基本信息（立即显示，不等待公网IP）
   console.log('-------------------------------------------------');
   console.log(`🚀 服务正在运行:`);
   console.log(`   - 本地访问: http://localhost:${PORT}`);
@@ -920,16 +875,71 @@ async function logServerInfo() {
     }
   }
   
-  if (publicIp) {
-    console.log(`   - 公网访问: http://${publicIp}:${PORT}`);
-  } else {
-    console.log('   - 公网IP: 无法获取');
-    if (lastError) {
-      console.log(`   - 原因: ${lastError.message || '网络连接问题'}`);
-    }
-    console.log('   - 提示: 如果服务器在NAT/防火墙后，可能需要配置端口转发');
-  }
+  console.log('   - 公网IP: 正在获取...');
   console.log('-------------------------------------------------');
+
+  // 🔥 优化：异步获取公网IP，不阻塞服务器启动信息显示
+  fetchPublicIp().then(publicIp => {
+    if (publicIp) {
+      console.log(`✅ 公网IP已获取: http://${publicIp}:${PORT}`);
+    }
+  }).catch(() => {
+    // 静默失败，已在 fetchPublicIp 中处理
+  });
+}
+
+// 🔥 新增：独立的公网IP获取函数，支持异步调用
+async function fetchPublicIp(): Promise<string | null> {
+  const publicIpServices = [
+    { url: 'https://api.ipify.org?format=json', timeout: 3000 },
+    { url: 'https://api64.ipify.org?format=json', timeout: 3000 },
+    { url: 'https://ifconfig.me/ip', timeout: 3000, isPlainText: true },
+    { url: 'https://icanhazip.com', timeout: 3000, isPlainText: true }
+  ];
+
+  let lastError: Error | null = null;
+
+  // 依次尝试各个服务
+  for (const service of publicIpServices) {
+    try {
+      let publicIp: string;
+      
+      if (service.isPlainText) {
+        // 纯文本响应
+        const response = await axios.get(service.url, { 
+          timeout: service.timeout,
+          responseType: 'text',
+          validateStatus: (status) => status === 200
+        });
+        publicIp = response.data.trim();
+      } else {
+        // JSON响应
+        const response = await axios.get(service.url, { 
+          timeout: service.timeout,
+          validateStatus: (status) => status === 200
+        });
+        publicIp = response.data.ip || response.data.query || response.data;
+      }
+      
+      // 验证IP格式
+      if (publicIp && /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(publicIp)) {
+        return publicIp;
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      // 继续尝试下一个服务
+      continue;
+    }
+  }
+
+  // 所有服务都失败
+  console.log('⚠️ 公网IP获取失败');
+  if (lastError) {
+    console.log(`   原因: ${lastError.message || '网络连接问题'}`);
+  }
+  console.log('   提示: 如果服务器在NAT/防火墙后，可能需要配置端口转发');
+  
+  return null;
 }
 
 console.log('🚀 准备调用startServer()函数...');
@@ -941,21 +951,40 @@ process.on('SIGINT', async () => {
   
   try {
     // 关闭WebSocket连接
-    wsManager.shutdown();
+    if (wsManager) {
+      wsManager.shutdown();
+    }
     
     // 关闭数据库连接
-    console.log('🗄️ 正在关闭数据库连接...');
-    await databaseService.disconnect();
+    if (databaseService) {
+      console.log('🗄️ 正在关闭数据库连接...');
+      await databaseService.disconnect();
+    } else {
+      console.log('⚠️ 数据库服务未初始化，跳过关闭');
+    }
     
     // 清理TestRunStore资源
-    console.log('🧹 正在清理TestRunStore资源...');
-    testRunStore.destroy();
+    if (testRunStore) {
+      console.log('🧹 正在清理TestRunStore资源...');
+      testRunStore.destroy();
+    }
     
     // 关闭HTTP服务器
-    server.close(() => {
+    if (server) {
+      server.close(() => {
+        console.log('✅ 服务器已完全关闭');
+        process.exit(0);
+      });
+      
+      // 设置超时，防止服务器关闭挂起
+      setTimeout(() => {
+        console.log('⚠️ 服务器关闭超时，强制退出');
+        process.exit(0);
+      }, 5000);
+    } else {
       console.log('✅ 服务器已完全关闭');
       process.exit(0);
-    });
+    }
   } catch (error) {
     console.error('❌ 关闭服务器时出错:', error);
     process.exit(1);

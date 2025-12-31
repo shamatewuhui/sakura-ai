@@ -88,9 +88,12 @@ export const Login: React.FC = () => {
     setLoading(true);
 
     try {
+      console.log('📝 [Login] 提交登录表单:', values.username);
       await login(values.username, values.password);
+      console.log('✅ [Login] 登录成功，准备跳转');
       navigate('/');
     } catch (err: any) {
+      console.error('❌ [Login] 登录错误:', err);
       setError(err.message || '登录失败，请重试');
     } finally {
       setLoading(false);

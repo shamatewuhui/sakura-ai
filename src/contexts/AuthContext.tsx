@@ -47,12 +47,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (username: string, password: string) => {
     try {
+      console.log('🔑 [AuthContext] 开始登录流程:', username);
       const response = await authService.login(username, password);
+      console.log('✅ [AuthContext] 登录成功，设置用户信息:', response.user);
       setUser(response.user);
       setToken(response.token);
       authService.setToken(response.token);
     } catch (error) {
-      console.error('登录失败:', error);
+      console.error('❌ [AuthContext] 登录失败:', error);
       throw error;
     }
   };

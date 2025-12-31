@@ -33,10 +33,13 @@ class AuthService {
    */
   async login(username: string, password: string): Promise<LoginResponse> {
     try {
+      console.log('🔐 [登录] 开始登录请求:', { username, url: `${API_BASE_URL}/api/auth/login` });
       const response = await axios.post<{ success: boolean; data: LoginResponse; error?: string }>(
         `${API_BASE_URL}/api/auth/login`,
         { username, password }
       );
+
+      console.log('✅ [登录] 收到响应:', response.data);
 
       if (response.data.success && response.data.data) {
         return response.data.data;
@@ -44,6 +47,11 @@ class AuthService {
         throw new Error(response.data.error || '登录失败');
       }
     } catch (error: any) {
+      console.error('❌ [登录] 登录失败:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       if (error.response?.data?.error) {
         throw new Error(error.response.data.error);
       }

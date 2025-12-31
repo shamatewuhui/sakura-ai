@@ -1,7 +1,5 @@
-// 🔥 使用createRequire来在ES模块中导入CommonJS模块
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-const { PrismaClient } = require('../../src/generated/prisma/index.js');
+// 🔥 使用标准 ES 模块导入 Prisma Client
+import { PrismaClient } from '../../src/generated/prisma/index.js';
 
 export interface DatabaseConfig {
   maxConnections?: number;

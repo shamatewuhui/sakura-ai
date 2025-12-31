@@ -29,6 +29,26 @@ export default defineConfig(({ mode }) => {
     },
     optimizeDeps: {
       exclude: ['lucide-react'],
+      // 🔥 确保 pdfjs-dist 被正确优化
+      include: ['pdfjs-dist'],
+    },
+    // 🔥 配置 worker 文件处理
+    worker: {
+      format: 'es',
+    },
+    // 🔥 构建配置：排除服务器端代码
+    build: {
+      rollupOptions: {
+        external: [
+          // 排除所有服务器端模块
+          /^node:.*/,
+          'module',
+          // 排除 Prisma Client
+          /.*\/generated\/prisma\/.*/,
+          // 排除服务器端代码
+          /^\/server\/.*/,
+        ],
+      },
     },
   };
 });

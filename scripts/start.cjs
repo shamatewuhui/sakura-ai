@@ -292,7 +292,12 @@ async function startServices() {
     shell: process.platform === 'win32',
     env: {
       ...process.env,
-      NODE_NO_WARNINGS: '1'
+      NODE_NO_WARNINGS: '1',
+      // 🔥 明确清除代理环境变量
+      HTTP_PROXY: '',
+      HTTPS_PROXY: '',
+      http_proxy: '',
+      https_proxy: ''
     }
   });
   
